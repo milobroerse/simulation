@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HEIGHT 64
-#define WIDTH 32
-#define BORDER 40
 #define DIAMETER 9
 
 typedef	struct Cell {
@@ -20,12 +17,12 @@ typedef struct Point {
 	int y;
 } Point;
 
-void 					flow(Cell world[HEIGHT][WIDTH], unsigned int j, unsigned int i);
+void 					flow(Cell **world, unsigned int j, unsigned int i);
 Point 				choosePoint(unsigned int l, unsigned int m, unsigned int r);
 Point 				flowDirection(Cell left, Cell middle, Cell right);
 unsigned int 	capacityAccessibility(unsigned int occupied, unsigned int capacity, unsigned int o1, unsigned int o2);
-void 					update(Cell world[HEIGHT][WIDTH], unsigned int height, unsigned int width);
+void 					update(Cell **world);
 void 					fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n);
-void 					fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n);
-void 					showWorld(Cell world[HEIGHT][WIDTH], unsigned int toCheck);
+void 					fillWorld(Cell **world, unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n);
+void 					showWorld(Cell **world, unsigned int toCheck);
 char 					typeToDisplay(char type);

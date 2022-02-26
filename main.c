@@ -1,18 +1,46 @@
 #include "main.h"
 
-int main(){
-	Cell world[HEIGHT][WIDTH];
+unsigned int worldHeight;
+unsigned int worldWidth;
+unsigned int worldBorder;
+
+int main(int argc, char **argv){
+
+	if (argc < 4 || argc > 4) {
+		printf("USAGE:\nmain.exe <HEIGHT> <WIDTH> <BORDER>\n");
+		return 1;
+	}
+
+	worldHeight = atoi(argv[1]);
+	worldWidth = atoi(argv[2]);
+	worldBorder = atoi(argv[3]);
+
+	// allocate world
+	Cell **world = malloc(sizeof(Cell*) * worldHeight);
+	for (unsigned int p = 0; p < worldHeight; p++) {
+		world[p] = malloc(sizeof(Cell) * worldWidth);
+	}
+
 	unsigned int grid[DIAMETER][DIAMETER] = {{0}};
 	fillGrid(grid, DIAMETER);
 	fillWorld(world, 23, grid, DIAMETER);
 	showWorld(world, 1);
-	update(world, HEIGHT, WIDTH);
+	update(world);
 	showWorld(world, 1);
+
+
+	// free world
+	for (int p = 0; p < worldHeight; p++) {
+		free(world[p]);
+		world[p] = NULL;
+	}
+	free(world);
+	world = NULL;
 	return 0;
 }
 
 // TBO
-void flow(Cell world[HEIGHT][WIDTH], unsigned int j, unsigned int i){
+void flow(Cell **world, unsigned int j, unsigned int i){
 	unsigned int y = j + 1;
 
 	Cell middle = world[y][i];
@@ -23,7 +51,7 @@ void flow(Cell world[HEIGHT][WIDTH], unsigned int j, unsigned int i){
 		left = world[y][i - 1];
 	}
 	Cell right;
-	if ((i + 1) == WIDTH){
+	if ((i + 1) == worldWidth){
 		right = middle;
 	} else {
 		right = world[y][i + 1];
@@ -62,11 +90,11 @@ unsigned int capacityAccessibility(unsigned int occupied, unsigned int capacity,
 	return (diff) + (diff * (occupied < o1)) + (diff * (occupied < o2));
 }
 
-void update(Cell world[HEIGHT][WIDTH], unsigned int height, unsigned int width){
-	for (int j = height - 1; j >= 0; j--) {
+void update(Cell **world){
+	for (int j = worldHeight - 1; j >= 0; j--) {
 		unsigned int y = j + 1;
-		for (int i = width - 1; i >= 0; i--) {
-			if (y < HEIGHT) {
+		for (int i = worldWidth - 1; i >= 0; i--) {
+			if (y < worldHeight) {
 				Cell currentCell = world[j][i];
 				if (currentCell.waterCapacity && currentCell.waterOccupied) {
 					flow(world, j, i);
@@ -96,21 +124,21 @@ void fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n) {
 }
 
 // TBO
-void fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n){
+void fillWorld(Cell **world, unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n){
 	srand(seed);
 
 	unsigned int points = rand() % 5 + 3;
-	printf("%d\n", points);
 	unsigned int radius = (n - 1) / 2;
-	for (int j = 0; j < HEIGHT; j++) {
-		for (int i = 0; i < WIDTH; i++) {
+
+	for (int j = 0; j < worldHeight; j++) {
+		for (int i = 0; i < worldWidth; i++) {
 			Cell c;
 			c.type = 'G';
 			c.waterOccupied = 0;
 			c.waterCapacity = rand() % 2; // add noise
 			c.nutrition = 0;
 			c.sun = 0;
-			if(j < BORDER){
+			if(j < worldBorder){
 				c.type = 'A';
 				c.waterCapacity = 0;
 			}
@@ -119,15 +147,15 @@ void fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[D
 	}
 
 	for (unsigned int p = 0; p < points; p++) {
-		unsigned int randX = rand() % WIDTH;
-		unsigned int randY = (rand() % (HEIGHT - BORDER)) + BORDER;
+		unsigned int randX = rand() % worldWidth;
+		unsigned int randY = (rand() % (worldHeight - worldBorder)) + worldBorder;
 		for (unsigned int j = 0; j < n; j++) {
 			int l = j - radius;
 			for (unsigned int i = 0; i < n; i++) {
 				int k = i - radius;
 				int x = randX - k;
 				int y = randY - l;
-				if ((x >= 0 && x < WIDTH) && (y >= BORDER && y < HEIGHT)){
+				if ((x >= 0 && x < worldWidth) && (y >= worldBorder && y < worldHeight)){
 					Cell c = world[y][x];
 					c.nutrition += grid[j][i];
 					c.waterOccupied += 1;
@@ -141,13 +169,13 @@ void fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[D
 }
 
 // TBO
-void showWorld(Cell world[HEIGHT][WIDTH], unsigned int toCheck){
-	for (unsigned int x = 0; x < WIDTH + 6; x++){
+void showWorld(Cell **world, unsigned int toCheck){
+	for (unsigned int x = 0; x < worldWidth + 6; x++){
 		printf("_");
 	}
 	printf("\n");
-	for (unsigned int y = 0; y < HEIGHT; y++) {
-		for (unsigned int x = 0; x < WIDTH; x++) {
+	for (unsigned int y = 0; y < worldHeight; y++) {
+		for (unsigned int x = 0; x < worldWidth; x++) {
 			if (toCheck == 0){
 				printf("%c", typeToDisplay(world[y][x].type));
 			} else if (toCheck == 1) {
