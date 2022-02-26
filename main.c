@@ -6,14 +6,15 @@ unsigned int worldBorder;
 
 int main(int argc, char **argv){
 
-	if (argc < 4 || argc > 4) {
-		printf("USAGE:\nmain.exe <HEIGHT> <WIDTH> <BORDER>\n");
+	if (argc < 5 || argc > 5) {
+		printf("USAGE:\nmain.exe <HEIGHT> <WIDTH> <BORDER> <GRIDSIZE>\n");
 		return 1;
 	}
 
 	worldHeight = atoi(argv[1]);
 	worldWidth = atoi(argv[2]);
 	worldBorder = atoi(argv[3]);
+	unsigned int gridsize = atoi(argv[4]);
 
 	// allocate world
 	Cell **world = malloc(sizeof(Cell*) * worldHeight);
@@ -21,13 +22,26 @@ int main(int argc, char **argv){
 		world[p] = malloc(sizeof(Cell) * worldWidth);
 	}
 
-	unsigned int grid[DIAMETER][DIAMETER] = {{0}};
-	fillGrid(grid, DIAMETER);
-	fillWorld(world, 23, grid, DIAMETER);
-	showWorld(world, 1);
-	update(world);
-	showWorld(world, 1);
+	// allocate grid
+	unsigned int **grid = malloc(sizeof(unsigned int*) * gridsize);
+	for (unsigned int p = 0; p < gridsize; p++) {
+		grid[p] = malloc(sizeof(unsigned int) * gridsize);
+	}
 
+	fillGrid(grid, gridsize);
+	fillWorld(world, 23, grid, gridsize);
+	showWorld(world, 0);
+	update(world);
+	showWorld(world, 0);
+
+
+	// free grid
+	for (unsigned int p = 0; p < gridsize; p++) {
+		free(grid[p]);
+		grid[p] = NULL;
+	}
+	free(grid);
+	grid = NULL;
 
 	// free world
 	for (int p = 0; p < worldHeight; p++) {
@@ -105,7 +119,7 @@ void update(Cell **world){
 }
 
 // TBO
-void fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n) {
+void fillGrid(unsigned int **grid, unsigned int n) {
 	unsigned int stop = n;
 	for (unsigned int j = 0; j < ((n - 1) / 2) + 1; j++) {
 		if (j != 0){
@@ -124,7 +138,7 @@ void fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n) {
 }
 
 // TBO
-void fillWorld(Cell **world, unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n){
+void fillWorld(Cell **world, unsigned int seed, unsigned int **grid, unsigned int n){
 	srand(seed);
 
 	unsigned int points = rand() % 5 + 3;
