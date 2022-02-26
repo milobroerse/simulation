@@ -1,81 +1,137 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#define HEIGHT 64
-#define WIDTH 32
-#define BORDER 40
-#define DIAMETER 9
-
-typedef	struct Cell {
-	char type;
-	unsigned char water;
-	unsigned char nutrition;
-	unsigned char sun;
-} Cell;
-
-void fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n);
-void fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n);
-void showWorld(Cell world[HEIGHT][WIDTH], unsigned int visual);
-char typeToDisplay(char type);
+#include "main.h"
 
 int main(){
 	Cell world[HEIGHT][WIDTH];
-	unsigned int nutritionGrid[DIAMETER][DIAMETER] = {{0}};
-	fillGrid(nutritionGrid, DIAMETER);
-	fillWorld(world, 14, nutritionGrid, DIAMETER);
+	unsigned int grid[DIAMETER][DIAMETER] = {{0}};
+	fillGrid(grid, DIAMETER);
+	fillWorld(world, 23, grid, DIAMETER);
+	showWorld(world, 1);
+	update(world, HEIGHT, WIDTH);
 	showWorld(world, 1);
 	return 0;
 }
 
-void fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n){
-	int stop = n;
-	for (int j = 0; j < ((n - 1) / 2) + 1; j++) {
+// TBO
+void flow(Cell world[HEIGHT][WIDTH], unsigned int j, unsigned int i){
+	unsigned int y = j + 1;
+
+	Cell middle = world[y][i];
+	Cell left;
+	if ((i - 1) < 0){
+		left = middle;
+	} else {
+		left = world[y][i - 1];
+	}
+	Cell right;
+	if ((i + 1) == WIDTH){
+		right = middle;
+	} else {
+		right = world[y][i + 1];
+	}
+
+	Point p = flowDirection(left, middle, right);
+	world[j][i].waterOccupied -= 1;
+	world[j + p.y][i + p.x].waterOccupied += 1;
+}
+
+Point choosePoint(unsigned int l, unsigned int m, unsigned int r) {
+	Point p = { .x = 0, .y = 0 };
+	if (l + m + r) {
+		p.y = 1;
+		unsigned int max = m;
+		if (l > max) {
+			max = l;
+			p.x = -1;
+		}
+		if (r > max) {
+			p.x = 1;
+		}
+	}
+	return p;
+}
+
+Point flowDirection(Cell left, Cell middle, Cell right) {
+	unsigned int leftAccessibility = capacityAccessibility(left.waterOccupied, left.waterCapacity, middle.waterOccupied,  right.waterOccupied);
+	unsigned int middleAccessibility = capacityAccessibility(middle.waterOccupied, middle.waterCapacity, left.waterOccupied, right.waterOccupied);
+	unsigned int rightAccessibility = capacityAccessibility(right.waterOccupied, right.waterCapacity, left.waterOccupied, middle.waterOccupied);
+	return choosePoint(leftAccessibility, middleAccessibility, rightAccessibility);
+}
+
+unsigned int capacityAccessibility(unsigned int occupied, unsigned int capacity, unsigned int o1, unsigned int o2){
+	unsigned int diff = capacity - occupied;
+	return (diff) + (diff * (occupied < o1)) + (diff * (occupied < o2));
+}
+
+void update(Cell world[HEIGHT][WIDTH], unsigned int height, unsigned int width){
+	for (int j = height - 1; j >= 0; j--) {
+		unsigned int y = j + 1;
+		for (int i = width - 1; i >= 0; i--) {
+			if (y < HEIGHT) {
+				Cell currentCell = world[j][i];
+				if (currentCell.waterCapacity && currentCell.waterOccupied) {
+					flow(world, j, i);
+				}
+			}
+		}
+	}
+}
+
+// TBO
+void fillGrid(unsigned int grid[DIAMETER][DIAMETER], unsigned int n) {
+	unsigned int stop = n;
+	for (unsigned int j = 0; j < ((n - 1) / 2) + 1; j++) {
 		if (j != 0){
-			for (int p = 0; p < n; p++){
+			for (unsigned int p = 0; p < n; p++){
 				grid[j][p] = grid[j-1][p];
 			}
 		}
-		for (int i = j; i < stop; i++){
+		for (unsigned int i = j; i < stop; i++) {
 			grid[j][i] += 1;
 		}
 		stop -= 1;
-		for (int p = 0; p < n; p++){
+		for (unsigned int p = 0; p < n; p++) {
 			grid[stop][p] = grid[j][p];
 		}
 	}
 }
+
+// TBO
 void fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[DIAMETER][DIAMETER], unsigned int n){
 	srand(seed);
- 	unsigned int nutritionPoints = rand() % 5 + 3;
-	unsigned int waterPoints = rand() % 5 + 3;
+
+	unsigned int points = rand() % 5 + 3;
+	printf("%d\n", points);
 	unsigned int radius = (n - 1) / 2;
 	for (int j = 0; j < HEIGHT; j++) {
 		for (int i = 0; i < WIDTH; i++) {
 			Cell c;
 			c.type = 'G';
-			if(j < BORDER){
-				c.type = 'A';
-			}
-			c.water = 0;
+			c.waterOccupied = 0;
+			c.waterCapacity = rand() % 2; // add noise
 			c.nutrition = 0;
 			c.sun = 0;
+			if(j < BORDER){
+				c.type = 'A';
+				c.waterCapacity = 0;
+			}
 			world[j][i] = c;
 		}
 	}
 
-	for (int p = 0; p < nutritionPoints; p++){
-		int randX = rand() % WIDTH;
-		int randY = (rand() % (HEIGHT - BORDER)) + BORDER;
-		for (int j = 0; j < n; j++) {
+	for (unsigned int p = 0; p < points; p++) {
+		unsigned int randX = rand() % WIDTH;
+		unsigned int randY = (rand() % (HEIGHT - BORDER)) + BORDER;
+		for (unsigned int j = 0; j < n; j++) {
 			int l = j - radius;
-			for (int i = 0; i < n; i++) {
+			for (unsigned int i = 0; i < n; i++) {
 				int k = i - radius;
 				int x = randX - k;
 				int y = randY - l;
 				if ((x >= 0 && x < WIDTH) && (y >= BORDER && y < HEIGHT)){
 					Cell c = world[y][x];
 					c.nutrition += grid[j][i];
-					c.water += grid[j][i];
+					c.waterOccupied += 1;
+					c.waterCapacity += grid[j][i];
 					c.type = 'T';
 					world[y][x] = c;
 				}
@@ -83,23 +139,30 @@ void fillWorld(Cell world[HEIGHT][WIDTH], unsigned int seed, unsigned int grid[D
 		}
 	}
 }
-void showWorld(Cell world[HEIGHT][WIDTH], unsigned int visual){
-	for (int x = 0; x < WIDTH + 6; x++){
+
+// TBO
+void showWorld(Cell world[HEIGHT][WIDTH], unsigned int toCheck){
+	for (unsigned int x = 0; x < WIDTH + 6; x++){
 		printf("_");
 	}
 	printf("\n");
-	for (int y = 0; y < HEIGHT; y++) {
-		for (int x = 0; x < WIDTH; x++) {
-			if (visual){
+	for (unsigned int y = 0; y < HEIGHT; y++) {
+		for (unsigned int x = 0; x < WIDTH; x++) {
+			if (toCheck == 0){
 				printf("%c", typeToDisplay(world[y][x].type));
-			} else {
+			} else if (toCheck == 1) {
+				printf("%d", world[y][x].waterOccupied);
+			} else if (toCheck == 2) {
 				printf("%d", world[y][x].nutrition);
+			} else if (toCheck == 3) {
+				printf("%d", world[y][x].waterCapacity);
 			}
 		}
 		printf("| %2d |", y);
 		printf("\n");
 	}
 }
+
 char typeToDisplay(char type){
 	char display;
 	switch (type) {
