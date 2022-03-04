@@ -45,20 +45,20 @@ int main(int argc, char **argv){
 }
 
 // TBO
-void flow(Cell **world, Point currentPoint, uint16_t worldWidth){
+void flow(Cell **world, Point currentPoint, uint16_t worldWidth) {
 	int16_t i = currentPoint.x;
 	int16_t j = currentPoint.y;
 	int16_t y = j + 1;
 
 	Cell middle = world[y][i];
 	Cell left;
-	if ((i - 1) < 0){
+	if ((i - 1) < 0) {
 		left = middle;
 	} else {
 		left = world[y][i - 1];
 	}
 	Cell right;
-	if ((i + 1) == worldWidth){
+	if ((i + 1) == worldWidth) {
 		right = middle;
 	} else {
 		right = world[y][i + 1];
@@ -92,19 +92,19 @@ Point flowDirection(Cell left, Cell middle, Cell right) {
 	return choosePoint(leftAccessibility, middleAccessibility, rightAccessibility);
 }
 
-uint8_t capacityAccessibility(uint8_t occupied, uint8_t capacity, uint8_t o1, uint8_t o2){
+uint8_t capacityAccessibility(uint8_t occupied, uint8_t capacity, uint8_t o1, uint8_t o2) {
 	uint8_t diff = capacity - occupied;
 	return (diff) + (diff * (occupied < o1)) + (diff * (occupied < o2));
 }
 
-void update(Cell **world, uint16_t worldHeight, uint16_t worldWidth){
+void update(Cell **world, uint16_t worldHeight, uint16_t worldWidth) {
 	for (int16_t j = worldHeight - 1; j >= 0; j--) {
 		int16_t y = j + 1;
 		for (int16_t i = worldWidth - 1; i >= 0; i--) {
 			if (y < worldHeight) {
 				Cell currentCell = world[j][i];
+				Point currentPoint = { .x = i, .y = j };
 				if (currentCell.waterCapacity && currentCell.waterOccupied) {
-					Point currentPoint = { .x = i, .y = j };
 					flow(world, currentPoint, worldWidth);
 				}
 			}
@@ -117,8 +117,8 @@ void fillGrid(uint16_t **grid, uint16_t gridSize) {
 	uint16_t stop = gridSize;
 	uint16_t rad = ((gridSize - 1) / 2) + 1;
 	for (uint16_t j = 0; j < rad; j++) {
-		if (j != 0){
-			for (uint16_t p = 0; p < gridSize; p++){
+		if (j != 0) {
+			for (uint16_t p = 0; p < gridSize; p++) {
 				grid[j][p] = grid[j-1][p];
 			}
 		}
@@ -133,7 +133,7 @@ void fillGrid(uint16_t **grid, uint16_t gridSize) {
 }
 
 // TBO
-void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t worldBorder, uint16_t seed, uint16_t **grid, uint16_t gridSize){
+void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t worldBorder, uint16_t seed, uint16_t **grid, uint16_t gridSize) {
 	srand(seed);
 
 	uint16_t points = rand() % 5 + 3;
@@ -150,7 +150,7 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 			}
 			c.nutrition = 0;
 			c.sun = 0;
-			if(j < worldBorder){
+			if(j < worldBorder) {
 				c.type = 'A';
 				c.waterCapacity = 0;
 			}
@@ -181,14 +181,14 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 }
 
 // TBO
-void showWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t toCheck){
+void showWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t toCheck) {
 	for (uint16_t x = 0; x < worldWidth + 6; x++) {
 		printf("_");
 	}
 	printf("\n");
 	for (uint16_t y = 0; y < worldHeight; y++) {
 		for (uint16_t x = 0; x < worldWidth; x++) {
-			if (toCheck == 0){
+			if (toCheck == 0) {
 				printf("%c", typeToDisplay(world[y][x].type));
 			} else if (toCheck == 1) {
 				printf("%d", world[y][x].waterOccupied);
@@ -203,7 +203,7 @@ void showWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 	}
 }
 
-char typeToDisplay(char type){
+char typeToDisplay(char type) {
 	char display;
 	switch (type) {
 		case 'G':

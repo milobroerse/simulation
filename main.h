@@ -16,6 +16,7 @@ typedef struct Point {
 	int16_t y;
 } Point;
 
+void 					rain();
 void 					flow(Cell **world, Point currentPoint, uint16_t worldWidth);
 Point 				choosePoint(uint8_t l, uint8_t m, uint8_t r);
 Point 				flowDirection(Cell left, Cell middle, Cell right);
