@@ -1,16 +1,17 @@
 #include "main.h"
 
-int main(int argc, char **argv){
 
-	if (argc < 5 || argc > 5) {
-		printf("USAGE:\nmain.exe <HEIGHT> <WIDTH> <BORDER> <GRIDSIZE>\n");
-		return 1;
-	}
+int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, int CmdShow)
+{
+	int argc = __argc;
+	char **argv = __argv;
+	DebugLog("%d", argc);
+	DebugLog("%s", argv[0]);
 
-	uint16_t worldHeight = atoi(argv[1]);
-	uint16_t worldWidth = atoi(argv[2]);
-	uint16_t worldBorder = atoi(argv[3]);
-	uint16_t gridSize = atoi(argv[4]);
+	uint16_t worldHeight = 1080;
+	uint16_t worldWidth = 1920;
+	uint16_t worldBorder = 646;
+	uint16_t gridSize = 140;
 
 	// allocate world
 	Cell **world = malloc(sizeof(Cell*) * worldHeight);
@@ -25,10 +26,44 @@ int main(int argc, char **argv){
 	}
 
 	fillGrid(grid, gridSize);
-	fillWorld(world, worldHeight, worldWidth, worldBorder, 23, grid, gridSize);
-	update(world, worldHeight, worldWidth);
-	showWorld(world, worldHeight, worldWidth, 0);
+	fillWorld(world, worldHeight, worldWidth, worldBorder, 14, grid, gridSize);
+	// Source: https://www.guidgenerator.com/online-guid-generator.aspx
+	const char* uniqueClassName = "99ee9a0b-9a7c-4ef7-b2f5-2775c626d119";
 
+	WNDCLASSEXA WindowClass;
+	HWND WindowHandle;
+
+	WindowClass.cbSize 				= sizeof(WNDCLASSEXA);
+	WindowClass.style 				= 0;
+	WindowClass.lpfnWndProc 	= MainWindowProc;
+	WindowClass.cbClsExtra 		= 0;
+	WindowClass.cbWndExtra 		= 0;
+	WindowClass.hInstance 		= Instance;
+	WindowClass.hIcon 				= LoadIconA(NULL, IDI_APPLICATION);
+	WindowClass.hCursor 			= LoadCursorA(NULL, IDC_ARROW);
+	WindowClass.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
+	WindowClass.lpszMenuName 	= NULL;
+	WindowClass.lpszClassName = uniqueClassName;
+	WindowClass.hIconSm 			= LoadIconA(NULL, IDI_APPLICATION);
+
+	if (!RegisterClassExA(&WindowClass)) {
+		MessageBox(NULL, "Window Registration Unsuccesful", "Error Message", MB_ICONEXCLAMATION | MB_OK);
+	 	return 1;
+	}
+
+	WindowHandle = CreateWindowExA(0, WindowClass.lpszClassName, "Simulation", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, NULL, NULL, Instance, (LPVOID) world);
+
+	if (!WindowHandle)  {
+		MessageBox(NULL, "Window Creation Unsuccesful", "Error Message", MB_ICONEXCLAMATION | MB_OK);
+		return 2;
+	}
+
+	MSG Message;
+
+	while (GetMessageA(&Message, NULL, 0, 0) > 0) {
+		TranslateMessage(&Message);
+		DispatchMessageA(&Message);
+	}
 
 	// free grid
 	for (uint16_t p = 0; p < gridSize; p++) {
@@ -41,7 +76,58 @@ int main(int argc, char **argv){
 		free(world[p]);
 	}
 	free(world);
+
 	return 0;
+}
+
+LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
+
+	switch (uMsg)
+	{
+		case WM_CREATE:
+		{
+			LPCREATESTRUCT lpcs = (LPCREATESTRUCT)lParam;
+			Cell** lpData = (Cell**)lpcs->lpCreateParams;
+			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LPARAM)lpData);
+			return 0;
+		}
+
+		case WM_PAINT:
+		{
+
+			Cell** world = (Cell**)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hwnd, &ps);
+
+			COLORREF col = RGB(135, 206, 235);
+			for (unsigned int j = 0; j < 1080; j++) {
+				for (unsigned int i = 0; i < 1920; i++) {
+					Cell a = world[j][i];
+					SetPixel(hdc, i, j, typeToColor(a.type, a.waterOccupied));
+				}
+			}
+
+			EndPaint(hwnd, &ps);
+			return 0;
+		}
+
+		case WM_CLOSE:
+		{
+			DestroyWindow(hwnd);
+			return 0;
+		}
+
+		case WM_DESTROY:
+		{
+			PostQuitMessage(0);
+			return 0;
+		}
+
+		default: break;
+	}
+
+	return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
 // TBO
@@ -136,17 +222,17 @@ void fillGrid(uint16_t **grid, uint16_t gridSize) {
 void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t worldBorder, uint16_t seed, uint16_t **grid, uint16_t gridSize) {
 	srand(seed);
 
-	uint16_t points = rand() % 5 + 3;
+	uint16_t points = rand() % 10 + 10;
 	uint16_t radius = (gridSize - 1) / 2;
 
 	for (uint16_t j = 0; j < worldHeight; j++) {
 		for (uint16_t i = 0; i < worldWidth; i++) {
 			Cell c;
-			c.type = 'G';
-			c.waterOccupied = 0;
-			c.waterCapacity = rand() % 2; // add noise
+			c.type = 'S';
+			c.waterOccupied = (rand() % 28) + 10;
+			c.waterCapacity = rand() % 14;
 			if (c.waterCapacity) {
-				c.type = 'T';
+				c.type = 'G';
 			}
 			c.nutrition = 0;
 			c.sun = 0;
@@ -170,9 +256,8 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 				if ((x >= 0 && x < worldWidth) && (y >= worldBorder && y < worldHeight)){
 					Cell c = world[y][x];
 					c.nutrition += grid[j][i];
-					c.waterOccupied += 1;
+					c.waterOccupied += 14;
 					c.waterCapacity += grid[j][i];
-					c.type = 'T';
 					world[y][x] = c;
 				}
 			}
@@ -180,41 +265,44 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 	}
 }
 
-// TBO
-void showWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t toCheck) {
-	for (uint16_t x = 0; x < worldWidth + 6; x++) {
-		printf("_");
-	}
-	printf("\n");
-	for (uint16_t y = 0; y < worldHeight; y++) {
-		for (uint16_t x = 0; x < worldWidth; x++) {
-			if (toCheck == 0) {
-				printf("%c", typeToDisplay(world[y][x].type));
-			} else if (toCheck == 1) {
-				printf("%d", world[y][x].waterOccupied);
-			} else if (toCheck == 2) {
-				printf("%d", world[y][x].nutrition);
-			} else if (toCheck == 3) {
-				printf("%d", world[y][x].waterCapacity);
-			}
-		}
-		printf("| %2d |", y);
-		printf("\n");
-	}
-}
-
-char typeToDisplay(char type) {
-	char display;
+COLORREF typeToColor(char type, uint8_t occupied) {
+	int r;
+	int g;
+	int b;
 	switch (type) {
 		case 'G':
-			display = '_';
+			r = 160;
+			g = 80;
+			b = 30;
 			break;
 		case 'A':
-			display = ' ';
+			r = 160;
+			g = 230;
+			b = 255;
 			break;
-		case 'T':
-			display = '#';
+		case 'S':
+			r = 128;
+			g = 128;
+			b = 128;
+			break;
+		default:
+			r = 255;
+			g = 255;
+			b = 255;
 			break;
 	}
-	return display;
+	return RGB(r,g,b);
+}
+
+void DebugLog(char* format, ...)
+{
+     va_list va;
+     va_start(va, format);
+
+     char str[128];
+     vsnprintf(str, sizeof(str), format, va);
+
+     va_end(va);
+
+     OutputDebugStringA(str);
 }
