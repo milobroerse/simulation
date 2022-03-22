@@ -27,6 +27,7 @@ int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, i
 
 	fillGrid(grid, gridSize);
 	fillWorld(world, worldHeight, worldWidth, worldBorder, 14, grid, gridSize);
+
 	// Source: https://www.guidgenerator.com/online-guid-generator.aspx
 	const char* uniqueClassName = "99ee9a0b-9a7c-4ef7-b2f5-2775c626d119";
 
@@ -234,9 +235,7 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 			if (c.waterCapacity) {
 				c.type = 'G';
 			}
-			c.nutrition = 0;
-			c.sun = 0;
-			if(j < worldBorder) {
+			if (j < worldBorder) {
 				c.type = 'A';
 				c.waterCapacity = 0;
 			}
@@ -255,7 +254,6 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 				int16_t y = randY - l;
 				if ((x >= 0 && x < worldWidth) && (y >= worldBorder && y < worldHeight)){
 					Cell c = world[y][x];
-					c.nutrition += grid[j][i];
 					c.waterOccupied += 14;
 					c.waterCapacity += grid[j][i];
 					world[y][x] = c;
@@ -294,8 +292,7 @@ COLORREF typeToColor(char type, uint8_t occupied) {
 	return RGB(r,g,b);
 }
 
-void DebugLog(char* format, ...)
-{
+void DebugLog(char* format, ...) {
      va_list va;
      va_start(va, format);
 

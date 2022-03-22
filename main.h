@@ -12,8 +12,8 @@ typedef	struct Cell {
 
 	uint8_t waterOccupied;
 	uint8_t waterCapacity;
-	uint8_t nutrition;
-	uint8_t sun;
+	// uint8_t nutrition;
+	// uint8_t sun;
 } Cell;
 
 typedef struct Point {
