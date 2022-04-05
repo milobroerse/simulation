@@ -5,13 +5,12 @@ int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, i
 {
 	int argc = __argc;
 	char **argv = __argv;
-	DebugLog("%d", argc);
-	DebugLog("%s", argv[0]);
 
 	uint16_t worldHeight = 1080;
 	uint16_t worldWidth = 1920;
 	uint16_t worldBorder = 646;
 	uint16_t gridSize = 140;
+	uint64_t seed[4] = {1,2,3,4};
 
 	// allocate world
 	Cell **world = malloc(sizeof(Cell*) * worldHeight);
@@ -26,7 +25,7 @@ int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, i
 	}
 
 	fillGrid(grid, gridSize);
-	fillWorld(world, worldHeight, worldWidth, worldBorder, 14, grid, gridSize);
+	fillWorld(world, worldHeight, worldWidth, worldBorder, seed, grid, gridSize);
 
 	// Source: https://www.guidgenerator.com/online-guid-generator.aspx
 	const char* uniqueClassName = "99ee9a0b-9a7c-4ef7-b2f5-2775c626d119";
@@ -220,18 +219,16 @@ void fillGrid(uint16_t **grid, uint16_t gridSize) {
 }
 
 // TBO
-void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t worldBorder, uint16_t seed, uint16_t **grid, uint16_t gridSize) {
-	srand(seed);
-
-	uint16_t points = rand() % 10 + 10;
+void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t worldBorder, uint64_t *seed, uint16_t **grid, uint16_t gridSize) {
+	uint16_t points = xoshiro256ss(seed) % 10 + 10;
 	uint16_t radius = (gridSize - 1) / 2;
 
 	for (uint16_t j = 0; j < worldHeight; j++) {
 		for (uint16_t i = 0; i < worldWidth; i++) {
 			Cell c;
 			c.type = 'S';
-			c.waterOccupied = (rand() % 28) + 10;
-			c.waterCapacity = rand() % 14;
+			c.waterOccupied =	0;
+			c.waterCapacity = xoshiro256ss(seed) % 2;
 			if (c.waterCapacity) {
 				c.type = 'G';
 			}
@@ -244,8 +241,8 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 	}
 
 	for (uint16_t p = 0; p < points; p++) {
-		uint16_t randX = rand() % worldWidth;
-		uint16_t randY = (rand() % (worldHeight - worldBorder)) + worldBorder;
+		uint16_t randX = xoshiro256ss(seed) % worldWidth;
+		uint16_t randY = (xoshiro256ss(seed) % (worldHeight - worldBorder)) + worldBorder;
 		for (uint16_t j = 0; j < gridSize; j++) {
 			int16_t l = j - radius;
 			for (uint16_t i = 0; i < gridSize; i++) {
@@ -254,8 +251,6 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 				int16_t y = randY - l;
 				if ((x >= 0 && x < worldWidth) && (y >= worldBorder && y < worldHeight)){
 					Cell c = world[y][x];
-					c.waterOccupied += 14;
-					c.waterCapacity += grid[j][i];
 					world[y][x] = c;
 				}
 			}
@@ -290,6 +285,27 @@ COLORREF typeToColor(char type, uint8_t occupied) {
 			break;
 	}
 	return RGB(r,g,b);
+}
+
+uint64_t rol64(uint64_t x, int k)
+{
+	return (x << k) | (x >> (64 - k));
+}
+
+uint64_t xoshiro256ss(uint64_t *s)
+{
+	uint64_t const result = rol64(s[1] * 5, 7) * 9;
+	uint64_t const t = s[1] << 17;
+
+	s[2] ^= s[0];
+	s[3] ^= s[1];
+	s[1] ^= s[2];
+	s[0] ^= s[3];
+
+	s[2] ^= t;
+	s[3] = rol64(s[3], 45);
+
+	return result;
 }
 
 void DebugLog(char* format, ...) {
