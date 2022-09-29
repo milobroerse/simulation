@@ -1,15 +1,19 @@
 #include "main.h"
 
 
-int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, int CmdShow)
-{
-	int argc = __argc;
-	char **argv = __argv;
+int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, int CmdShow){
+	void* bitmapMemory;
 
-	uint16_t worldHeight = 1080;
-	uint16_t worldWidth = 1920;
-	uint16_t worldBorder = 646;
-	uint16_t gridSize = 140;
+	int bitmapWidth;
+	int bitmapHeight;
+
+	int clientWidth;
+	int clientHeight;
+
+	uint16_t worldHeight = 1000;
+	uint16_t worldWidth = 1500;
+	uint16_t worldBorder = 700;
+	uint16_t gridSize = 14;
 	uint64_t seed[4] = {1,2,3,4};
 
 	// allocate world
@@ -46,23 +50,59 @@ int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, i
 	WindowClass.lpszClassName = uniqueClassName;
 	WindowClass.hIconSm 			= LoadIconA(NULL, IDI_APPLICATION);
 
-	if (!RegisterClassExA(&WindowClass)) {
+	if (!RegisterClassEx(&WindowClass)) {
 		MessageBox(NULL, "Window Registration Unsuccesful", "Error Message", MB_ICONEXCLAMATION | MB_OK);
 	 	return 1;
 	}
 
-	WindowHandle = CreateWindowExA(0, WindowClass.lpszClassName, "Simulation", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, NULL, NULL, Instance, (LPVOID) world);
+	WindowHandle = CreateWindowEx(0, WindowClass.lpszClassName, "Simulation", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, worldWidth + 16, worldHeight + 39, NULL, NULL, Instance, (LPVOID) world);
 
-	if (!WindowHandle)  {
-		MessageBox(NULL, "Window Creation Unsuccesful", "Error Message", MB_ICONEXCLAMATION | MB_OK);
-		return 2;
-	}
+	RECT clientRect;
+	GetClientRect(WindowHandle, &clientRect);
+	clientWidth = clientRect.right - clientRect.left;
+	clientHeight = clientRect.bottom - clientRect.top;
 
-	MSG Message;
+	bitmapWidth = clientWidth;
+	bitmapHeight = clientHeight;
 
-	while (GetMessageA(&Message, NULL, 0, 0) > 0) {
-		TranslateMessage(&Message);
-		DispatchMessageA(&Message);
+	int bytesPerPixel = 4;
+
+	bitmapMemory = VirtualAlloc(0, bitmapWidth * bitmapHeight * bytesPerPixel, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
+	BITMAPINFO bitmapInfo;
+	bitmapInfo.bmiHeader.biSize = sizeof(bitmapInfo.bmiHeader);
+	bitmapInfo.bmiHeader.biWidth = bitmapWidth;
+	// Negative height makes top left as the coordinate system origin for the DrawPixel function, otherwise its bottom left
+	bitmapInfo.bmiHeader.biHeight = -bitmapHeight;
+	bitmapInfo.bmiHeader.biPlanes = 1;
+	bitmapInfo.bmiHeader.biBitCount = 32;
+	bitmapInfo.bmiHeader.biCompression = BI_RGB;
+
+	HDC DeviceContext = GetDC(WindowHandle);
+
+	int running = 1;
+
+	while (running) {
+		MSG Message;
+		while(PeekMessage(&Message, NULL, 0, 0, PM_REMOVE)) {
+			if(Message.message == WM_QUIT) running = 0;
+			TranslateMessage(&Message);
+			DispatchMessage(&Message);
+		}
+
+		for (unsigned int i = 0; i < worldWidth; i++) {
+			for (unsigned int j = 0; j < worldHeight; j++) {
+				Cell cell = world[j][i];
+				setPixelColor(i, j, cellToColor(cell), bitmapMemory, bitmapWidth);
+			}
+		}
+
+		HBITMAP BitmapHandle = CreateBitmap(bitmapWidth, bitmapHeight, 1, 32, bitmapMemory);
+
+		HDC BitmapDeviceContext = CreateCompatibleDC(NULL);
+		SelectObject(BitmapDeviceContext, BitmapHandle);
+
+		BitBlt(DeviceContext, 0, 0, bitmapWidth, bitmapHeight, BitmapDeviceContext, 0, 0, SRCCOPY);
 	}
 
 	// free grid
@@ -80,54 +120,28 @@ int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, i
 	return 0;
 }
 
+void setPixelColor(int x, int y, uint32_t color, void *bitmapMemory, int bitmapWidth) {
+    uint32_t *pixel = (uint32_t *)bitmapMemory;
+    pixel += y * bitmapWidth + x;
+    *pixel = color;
+}
+
+void clearScreen(uint32_t color, void *bitmapMemory, int bitmapWidth, int bitmapHeight) {
+    uint32_t *pixel = (uint32_t *)bitmapMemory;
+    for(int i = 0; i < bitmapWidth * bitmapHeight; i++) {
+       *pixel++ = color;
+     }
+}
+
 LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
-
-	switch (uMsg)
-	{
-		case WM_CREATE:
-		{
-			LPCREATESTRUCT lpcs = (LPCREATESTRUCT)lParam;
-			Cell** lpData = (Cell**)lpcs->lpCreateParams;
-			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LPARAM)lpData);
-			return 0;
-		}
-
-		case WM_PAINT:
-		{
-
-			Cell** world = (Cell**)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-
-			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hwnd, &ps);
-
-			COLORREF col = RGB(135, 206, 235);
-			for (unsigned int j = 0; j < 1080; j++) {
-				for (unsigned int i = 0; i < 1920; i++) {
-					Cell a = world[j][i];
-					SetPixel(hdc, i, j, typeToColor(a.type, a.waterOccupied));
-				}
-			}
-
-			EndPaint(hwnd, &ps);
-			return 0;
-		}
-
-		case WM_CLOSE:
-		{
-			DestroyWindow(hwnd);
-			return 0;
-		}
-
-		case WM_DESTROY:
-		{
-			PostQuitMessage(0);
-			return 0;
-		}
-
-		default: break;
+	switch(uMsg) {
+			case WM_KEYDOWN: {
+					switch(wParam) { case 'O': { DestroyWindow(hwnd); }; }
+			} break;
+			case WM_DESTROY: { PostQuitMessage(0); } break;
+			default: { return DefWindowProc(hwnd, uMsg, wParam,  lParam); }
 	}
-
-	return DefWindowProc(hwnd, uMsg, wParam, lParam);
+	return 0;
 }
 
 // TBO
@@ -226,15 +240,17 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 	for (uint16_t j = 0; j < worldHeight; j++) {
 		for (uint16_t i = 0; i < worldWidth; i++) {
 			Cell c;
-			c.type = 'S';
-			c.waterOccupied =	0;
-			c.waterCapacity = xoshiro256ss(seed) % 2;
-			if (c.waterCapacity) {
-				c.type = 'G';
-			}
 			if (j < worldBorder) {
 				c.type = 'A';
+				c.waterOccupied =	0;
 				c.waterCapacity = 0;
+			} else {
+				c.type = 'G';
+				c.waterOccupied =	0;
+				c.waterCapacity = xoshiro256ss(seed) % 2;
+				if (c.waterCapacity == 0) {
+					c.type = 'S';
+				}
 			}
 			world[j][i] = c;
 		}
@@ -251,6 +267,8 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 				int16_t y = randY - l;
 				if ((x >= 0 && x < worldWidth) && (y >= worldBorder && y < worldHeight)){
 					Cell c = world[y][x];
+					c.waterOccupied += 1;
+					c.waterCapacity += 1;
 					world[y][x] = c;
 				}
 			}
@@ -258,33 +276,39 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 	}
 }
 
-COLORREF typeToColor(char type, uint8_t occupied) {
-	int r;
-	int g;
-	int b;
-	switch (type) {
+COLORREF cellToColor(Cell currentCell) {
+	int hex = 0x000000;
+	int r, g, b, a;
+	switch (currentCell.type) {
 		case 'G':
-			r = 160;
-			g = 80;
-			b = 30;
+			int min[3] = {120, 60, 40};
+			int max[3] = {60, 30, 20};
+
+			float perc = currentCell.waterOccupied / currentCell.waterCapacity;
+			r = min[0] - perc * (min[0] - max[0]);
+			g = min[1] - perc * (min[1] - max[1]);
+			b = min[2] - perc * (min[2] - max[2]);
+			a = 255;
+			hex = ((((((hex | a) << 8) | r) << 8) | g) << 8) | b;
 			break;
 		case 'A':
-			r = 160;
-			g = 230;
-			b = 255;
+			r = 135;
+			g = 206;
+			b = 235;
+			a = 255;
+			hex = ((((((hex | a) << 8) | r) << 8) | g) << 8) | b;
 			break;
 		case 'S':
-			r = 128;
-			g = 128;
-			b = 128;
+			r = 40;
+			g = 40;
+			b = 40;
+			a = 255;
+			hex = ((((((hex | a) << 8) | r) << 8) | g) << 8) | b;
 			break;
 		default:
-			r = 255;
-			g = 255;
-			b = 255;
 			break;
 	}
-	return RGB(r,g,b);
+	return hex;
 }
 
 uint64_t rol64(uint64_t x, int k)
