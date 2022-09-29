@@ -126,13 +126,6 @@ void setPixelColor(int x, int y, uint32_t color, void *bitmapMemory, int bitmapW
     *pixel = color;
 }
 
-void clearScreen(uint32_t color, void *bitmapMemory, int bitmapWidth, int bitmapHeight) {
-    uint32_t *pixel = (uint32_t *)bitmapMemory;
-    for(int i = 0; i < bitmapWidth * bitmapHeight; i++) {
-       *pixel++ = color;
-     }
-}
-
 LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 	switch(uMsg) {
 			case WM_KEYDOWN: {
