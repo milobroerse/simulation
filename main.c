@@ -13,7 +13,7 @@ int WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR CommandLine, i
 	uint16_t worldHeight = 1000;
 	uint16_t worldWidth = 1500;
 	uint16_t worldBorder = 700;
-	uint16_t gridSize = 14;
+	uint16_t gridSize = 141;
 	uint64_t seed[4] = {1,2,3,4};
 
 	// allocate world
@@ -238,11 +238,15 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 				c.waterOccupied =	0;
 				c.waterCapacity = 0;
 			} else {
-				c.type = 'G';
-				c.waterOccupied =	0;
-				c.waterCapacity = xoshiro256ss(seed) % 2;
-				if (c.waterCapacity == 0) {
+				int waterCapacity = xoshiro256ss(seed) % 255;
+				if (waterCapacity) {
+					c.type = 'G';
+					c.waterOccupied = xoshiro256ss(seed) % 255;
+					c.waterCapacity = 255; // TODO cap !> occ
+				} else {
 					c.type = 'S';
+					c.waterOccupied =	0;
+					c.waterCapacity = 0;
 				}
 			}
 			world[j][i] = c;
@@ -260,8 +264,6 @@ void fillWorld(Cell **world, uint16_t worldHeight, uint16_t worldWidth, uint16_t
 				int16_t y = randY - l;
 				if ((x >= 0 && x < worldWidth) && (y >= worldBorder && y < worldHeight)){
 					Cell c = world[y][x];
-					c.waterOccupied += 1;
-					c.waterCapacity += 1;
 					world[y][x] = c;
 				}
 			}
@@ -274,14 +276,14 @@ COLORREF cellToColor(Cell currentCell) {
 	int r, g, b, a;
 	switch (currentCell.type) {
 		case 'G':
-			int min[3] = {120, 60, 40};
-			int max[3] = {60, 30, 20};
+			Color lighestGround = { .a = 255, .r = 175, .g = 105, .b = 70 };
+			Color darkestGround = { .a = 255, .r = 25, .g = 15, .b = 10 };
 
-			float perc = currentCell.waterOccupied / currentCell.waterCapacity;
-			r = min[0] - perc * (min[0] - max[0]);
-			g = min[1] - perc * (min[1] - max[1]);
-			b = min[2] - perc * (min[2] - max[2]);
-			a = 255;
+			a = lighestGround.a;
+			r = lighestGround.r - (currentCell.waterOccupied * (lighestGround.r - darkestGround.r)) / currentCell.waterCapacity;
+			g = lighestGround.g - (currentCell.waterOccupied * (lighestGround.g - darkestGround.g)) / currentCell.waterCapacity;
+			b = lighestGround.b - (currentCell.waterOccupied * (lighestGround.b - darkestGround.b)) / currentCell.waterCapacity;
+
 			hex = ((((((hex | a) << 8) | r) << 8) | g) << 8) | b;
 			break;
 		case 'A':
